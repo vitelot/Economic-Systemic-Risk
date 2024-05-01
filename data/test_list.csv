@@ -1,0 +1,13 @@
+supplier,customer,supplierNACE,customerNACE,weight,type
+A,X,1,1,1.0,2
+B,X,2,1,1.0,2
+C,X,2,1,1.0,2
+D,X,2,1,1.0,2
+E,X,3,1,1.0,1
+F,X,3,1,1.0,1
+G,X,5,1,1.0,1
+H,X,99,1,1.0,0
+X,I,1,1,1.0,2
+X,J,1,3,1.0,1
+X,K,1,4,1.0,2
+K,L,4,2,1.0,2
