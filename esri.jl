@@ -15,8 +15,8 @@ function main(file::String)
     esri = ESRI(M, A, Q)
 end
 
-esri = main("data/complete_edge_list.csv");
-# esri = main("data/test_list.csv");
+# esri = main("real_data/complete_edge_list.csv");
+esri = main("data/test_list.csv");
 
 # @profview main("data/complete_edge_list.csv")
 
