@@ -253,3 +253,9 @@ function ESRI(M::Market, A::Arrays, Q::DynamicalQuantities)::Vector{Float64}
     end
     return esri;
 end
+
+function saveESRI(M::Market, esri::Vector{Float64}, outfile::String)
+    companies = [x.name for x in sort(collect(values(M.Companies)), by=x->x.id)];
+    dfout = DataFrame(company=companies, esri=esri);
+    CSV.write(outfile, dfout);
+end

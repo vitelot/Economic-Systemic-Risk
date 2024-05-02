@@ -1,9 +1,9 @@
 include("extern.jl");
 include("functions.jl");
 
-function main(file::String)
-    @info "Initializing the market according to input file \"$file\"";
-    M = initializeMarket(file);
+function main(inputfile::String, outputfile::String="esri.csv")
+    @info "Initializing the market according to input file \"$inputfile\"";
+    M = initializeMarket(inputfile);
 
     @info "Building sparse adjacency matrices";
     A = buildArrays(M);
@@ -12,7 +12,12 @@ function main(file::String)
     Q = DynamicalQuantities(length(M.Companies));
 
     @info "Calculating ESRI";
-    esri = ESRI(M, A, Q)
+    esri = ESRI(M, A, Q);
+
+    @info "Saving the results into file \"$outputfile\"";
+    saveESRI(M, esri, outputfile);
+
+    return esri;
 end
 
 # esri = main("real_data/complete_edge_list.csv");
@@ -23,6 +28,9 @@ esri = main("data/test_list.csv");
 # using Plots
 # plot(sort(esri, rev=true))
 
+# M = initializeMarket("data/test_list.csv");
+# sort(collect(values(M.Companies)), by=x->x.id)
+# 1;
 
 
 # argmax(esri)
