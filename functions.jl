@@ -114,7 +114,9 @@ function buildArrays(M::Market)::Arrays
             # append the id to the corresponding vector addressed by the sector
             push!(F[suppliernace], x.supplier);
             get!(E, suppliernace, x.type);
-            x.type == 1 && (nonessential_weight_sum += x.weight);
+            nonessential_weight_sum += x.weight; # include ALL links
+            # x.type == 0 || (nonessential_weight_sum += x.weight); # exclude useless links
+            # x.type == 1 && (nonessential_weight_sum += x.weight); # include non-essential links only
         end
         all = beta = 0.0;
         for sector in keys(D)
