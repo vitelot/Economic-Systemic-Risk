@@ -1,7 +1,7 @@
 include("extern.jl");
 include("functions.jl");
 
-function main(inputfile::String, outputfile::String="esri.csv")
+function main(inputfile::String, outputfile::String="data/test_esri.csv")
     @info "Initializing the market according to input file \"$inputfile\"";
     M = initializeMarket(inputfile);
 
