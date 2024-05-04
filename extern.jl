@@ -26,17 +26,19 @@ struct Sector
     # company_ids::Vector{Int}; # set of companies belongind to this sector
     essential::Set{Int}; # set of essential sectors nace for this sector
     non_essential::Set{Int};
+    
+    Sector(nace::Int) = new(nace, Set{Int}(), Set{Int}());
 end
 # Sector(nace::Int) = Sector(nace, Set{Company}(), Vector{Int}(), Set{Int}(), Set{Int}());
-Sector(nace::Int) = Sector(nace, Set{Int}(), Set{Int}());
 
 struct Market
     Companies::Dict{Int, Company};
     Edges::Vector{Edge};
     Sectors::Dict{Int, Sector};
     CompanyID::Dict{String, Int}; # maps companies' names to internal IDs
+    
+    Market() = new(Dict{Int, Company}(), Edge[], Dict{Int, Sector}(), Dict{String, Int}());
 end
-Market() = Market(Dict{Int, Company}(), Edge[], Dict{Int, Sector}(), Dict{String, Int}());
 
 struct DynamicalQuantities
     marketshare::Dict{Int,Float64};
@@ -48,8 +50,9 @@ struct DynamicalQuantities
     newhu::Vector{Float64}; # upstream relative production level
     
     psi::Vector{Float64}; # initial constraint
+    
+    DynamicalQuantities(dim::Int) = new(Dict{Int,Float64}(), ones(dim), ones(dim), ones(dim), ones(dim), ones(dim));
 end
-DynamicalQuantities(dim::Int) = DynamicalQuantities(Dict{Int,Float64}(), ones(dim), ones(dim), ones(dim), ones(dim), ones(dim));
 
 struct Arrays
     lambda_u::SparseMatrixCSC{Float64, Int64};
