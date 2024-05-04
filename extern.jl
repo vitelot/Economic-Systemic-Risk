@@ -1,5 +1,6 @@
 @info "Loading libraries";
-using CSV, DataFrames, JLD2, SparseArrays, LinearAlgebra, ProgressMeter;
+using CSV, DataFrames, JLD2, SparseArrays, ProgressMeter;
+using LinearAlgebra: normalize!;
 
 struct Edge
     supplier::Int; # neighbor node
