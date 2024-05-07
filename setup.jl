@@ -9,12 +9,12 @@ mutable struct Company
 end
 
 # graphfile    = "data/graph.jld2";
-nodefile     = "data/nodes_ger.csv"; 
-edgefile     = "data/edges_ger.csv"; 
-sic2nacefile = "data/sic_to_nace2.csv";
-essential_sector_file = "data/nace_essential.csv";
+nodefile     = "real_data/nodes_ger.csv"; 
+edgefile     = "real_data/edges_ger.csv"; 
+sic2nacefile = "real_data/sic_to_nace2.csv";
+essential_sector_file = "real_data/nace_essential.csv";
 
-outfile      = "data/complete_edge_list.csv";
+outfile      = "real_data/complete_edge_list.csv";
 
 function main()
     @info "Loading node file";
