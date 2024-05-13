@@ -26,7 +26,7 @@ function main(inputfile::String, outputfile::String="data/test_esri.csv")
     return esri;
 end
 
-# esri = main("real_data/complete_edge_list.csv");
+# esri = main("real_data/complete_edge_list.csv", "real_data/esri_complete.csv");
 esri = main("data/test_list.csv");
 
 # @profview main("data/complete_edge_list.csv")

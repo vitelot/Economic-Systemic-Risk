@@ -265,6 +265,8 @@ function ESRI_parallel(M::Market, A::Arrays)::Vector{Float64}
         exit();
     end
 
+    @info "You set $nthreads cores to run the code in parallel. I'm impressed!"
+    
     Results = DataFrame(index=Int[], esri=Float64[]);
     VR = Vector{DataFrame}(undef, nthreads);
     VQ = Vector{DynamicalQuantities}(undef, nthreads);
@@ -274,7 +276,6 @@ function ESRI_parallel(M::Market, A::Arrays)::Vector{Float64}
     end
     # @info 1
     nrcomp = length(M.Companies);
-    # esri = Vector{Float64}(undef, nrcomp);
     total_volume = sum([x.sout0 for x in values(M.Companies)]);
     u = ones(nrcomp);
 
@@ -286,7 +287,7 @@ function ESRI_parallel(M::Market, A::Arrays)::Vector{Float64}
         while err > 1e-2
             err = oneStep(M,A,VQ[tid]);
         end
-        println("Calculating esri for firm \"$(M.Companies[i].name)\" on thread $tid ");
+        # println("Calculating esri for firm \"$(M.Companies[i].name)\" on thread $tid ");
         h = 1.0 .- min.(VQ[tid].hd, VQ[tid].hu);
         esri = sum([x.sout0 * h[x.id] for x in values(M.Companies)]) / total_volume;
         push!(VR[tid], (i, esri));
