@@ -245,6 +245,7 @@ function ESRI(M::Market, A::Arrays, Q::DynamicalQuantities)::Vector{Float64}
     # @showprogress dt=1 desc="Computing..." for t in 1:tmax
     @showprogress for i in sort(collect(keys(M.Companies)))
         Q.psi .= u; Q.psi[i] = 0.0;
+        Q.hd .= u; Q.hu .= u;
         err = 1.0;
         while err > 1e-2
             err = oneStep(M,A,Q);
@@ -254,6 +255,45 @@ function ESRI(M::Market, A::Arrays, Q::DynamicalQuantities)::Vector{Float64}
         esri[i] = sum([x.sout0 * h[x.id] for x in values(M.Companies)]) / total_volume;
     end
     return esri;
+end
+
+function ESRI_parallel(M::Market, A::Arrays)::Vector{Float64}
+    
+    nthreads = Threads.nthreads();
+    if nthreads == 1
+        println("You have only one thread selected. If you have more, pls run julia with --threads n");
+        exit();
+    end
+
+    Results = DataFrame(index=Int[], esri=Float64[]);
+    VR = Vector{DataFrame}(undef, nthreads);
+    VQ = Vector{DynamicalQuantities}(undef, nthreads);
+    for i = 1:nthreads
+        VR[i] = copy(Results);
+        VQ[i] = DynamicalQuantities(length(M.Companies));
+    end
+    # @info 1
+    nrcomp = length(M.Companies);
+    # esri = Vector{Float64}(undef, nrcomp);
+    total_volume = sum([x.sout0 for x in values(M.Companies)]);
+    u = ones(nrcomp);
+
+    Threads.@threads for i in collect(keys(M.Companies))
+        tid = Threads.threadid();
+        VQ[tid].psi .= u; VQ[tid].psi[i] = 0.0;
+        VQ[tid].hd .= u; VQ[tid].hu .= u;
+        err = 1.0;
+        while err > 1e-2
+            err = oneStep(M,A,VQ[tid]);
+        end
+        println("Calculating esri for firm \"$(M.Companies[i].name)\" on thread $tid ");
+        h = 1.0 .- min.(VQ[tid].hd, VQ[tid].hu);
+        esri = sum([x.sout0 * h[x.id] for x in values(M.Companies)]) / total_volume;
+        push!(VR[tid], (i, esri));
+    end
+
+    df = sort(vcat(VR...), :index);
+    return df.esri;
 end
 
 function saveESRI(M::Market, esri::Vector{Float64}, outfile::String)

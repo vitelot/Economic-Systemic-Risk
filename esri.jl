@@ -11,8 +11,14 @@ function main(inputfile::String, outputfile::String="data/test_esri.csv")
     @info "Initializing dynamical quantities";
     Q = DynamicalQuantities(length(M.Companies));
 
-    @info "Calculating ESRI";
-    esri = ESRI(M, A, Q);
+    nthreads = Threads.nthreads();
+    if nthreads > 1
+        @info "Calculating ESRI in parallel on $nthreads threads";
+        esri = ESRI_parallel(M, A);
+    else
+        @info "Calculating ESRI sequentially";
+        esri = ESRI(M, A, Q);
+    end
 
     @info "Saving the results into file \"$outputfile\"";
     saveESRI(M, esri, outputfile);

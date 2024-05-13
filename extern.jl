@@ -1,6 +1,7 @@
 @info "Loading libraries";
 using CSV, DataFrames, JLD2, SparseArrays, ProgressMeter;
 using LinearAlgebra: normalize!;
+# import Base.copy;
 
 struct Edge
     supplier::Int; # neighbor node
@@ -8,7 +9,8 @@ struct Edge
     suppliernace::Int;
     customernace::Int;
     weight::Float64;
-    type::Int;
+    
+    type::Int; #"link's type: 0=do not propagate shocks 1=non-essential 2=essential"
 end
 
 mutable struct Company
@@ -54,6 +56,7 @@ struct DynamicalQuantities
     
     DynamicalQuantities(dim::Int) = new(Dict{Int,Float64}(), ones(dim), ones(dim), ones(dim), ones(dim), ones(dim));
 end
+
 
 struct Arrays
     lambda_u::SparseMatrixCSC{Float64, Int64};
