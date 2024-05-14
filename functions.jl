@@ -234,9 +234,13 @@ function oneStep(M::Market, A::Arrays, Q::DynamicalQuantities)::Float64
     return error;
 end
 
-function ESRI(M::Market, A::Arrays, Q::DynamicalQuantities)::Vector{Float64}
+function ESRI(M::Market, A::Arrays)::Vector{Float64}
     
     nrcomp = length(M.Companies);
+    
+    @info "Initializing dynamical quantities";
+    Q = DynamicalQuantities(nrcomp);
+
     esri = Vector{Float64}(undef, nrcomp);
     # h    = Vector{Float64}(undef, nrcomp);
     total_volume = sum([x.sout0 for x in values(M.Companies)]);
@@ -264,8 +268,6 @@ function ESRI_parallel(M::Market, A::Arrays)::Vector{Float64}
         println("You have only one thread selected. If you have more, pls run julia with --threads n");
         exit();
     end
-
-    @info "You set $nthreads cores to run the code in parallel. I'm impressed!"
     
     Results = DataFrame(index=Int[], esri=Float64[]);
     VR = Vector{DataFrame}(undef, nthreads);
