@@ -32,3 +32,5 @@ VitosESRI.csv
 output.csv
 input.csv
 robautile.jl
+.DS_Store
+pippo*
