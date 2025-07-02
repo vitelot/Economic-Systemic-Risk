@@ -155,12 +155,15 @@ function marketShare(M::Market, Q::DynamicalQuantities)::Nothing
         volumesector[c.nace] = get(volumesector, c.nace, 0.0) + c.sout0 * hd[c.id];
     end
     for company in values(C)
-        sout0 = company.sout0;
+        sout0 = company.sout0
         if sout0 > 0
-            # volumesector = sum([x.sout0 * hd[id] for x in Sectors[company.nace].companies]);
-            marketshare[company.id] = min(1.0, sout0 / volumesector[company.nace]);
+            marketshare[company.id] = min(1.0, sout0 / volumesector[company.nace])
+        else
+            # Assign a market share of 0 for companies with no customers
+            marketshare[company.id] = 0.0
         end
     end
+
     return;
 end
 
