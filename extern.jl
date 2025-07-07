@@ -54,7 +54,20 @@ struct DynamicalQuantities
     
     psi::Vector{Float64}; # initial constraint
     
-    DynamicalQuantities(dim::Int) = new(Dict{Int,Float64}(), ones(dim), ones(dim), ones(dim), ones(dim), ones(dim));
+    # DynamicalQuantities(dim::Int) = new(Dict{Int,Float64}(), ones(dim), ones(dim), ones(dim), ones(dim), ones(dim));
+
+    function DynamicalQuantities(dim::Int)
+        
+        marketshare = Dict{Int,Float64}();
+        hd = Vector{Float64}(undef, dim);
+        hu = Vector{Float64}(undef, dim);
+        newhd = Vector{Float64}(undef, dim);
+        newhu = Vector{Float64}(undef, dim);
+        psi = Vector{Float64}(undef, dim);
+        
+        return new(marketshare, hd, hu, newhd, newhu, psi);
+    end
+
 end
 
 

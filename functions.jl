@@ -263,12 +263,12 @@ function oneStep(M::Market, A::Arrays, Q::DynamicalQuantities)::Float64
     # company = C[1302];
     for company in values(C)
         id = company.id;
-        # println(id)
         essentials, non_essentials = downStream(company, A, Q);
         newhd[id] = minimum((essentials, non_essentials, ψ[id]));
-
+        
         D_u = upStream(company, A, hu);
         newhu[id] = min(D_u, ψ[id]);
+        println("$id, $essentials, $non_essentials, $D_u, $(newhd[id]), $(newhu[id])");
     end
 
     error = max( maximum( abs.(hd .- newhd) ), maximum( abs.(hu .- newhu) ) );
@@ -284,26 +284,27 @@ function ESRI(M::Market, A::Arrays)::Vector{Float64}
     
     nrcomp = length(M.Companies);
     
-    @info "Initializing dynamical quantities";
+    @info "Initializing dynamical quantities for $nrcomp companies";
     Q = DynamicalQuantities(nrcomp);
 
     esri = Vector{Float64}(undef, nrcomp);
     # h    = Vector{Float64}(undef, nrcomp);
     total_volume = sum([x.sout0 for x in values(M.Companies)]);
     u = ones(nrcomp);
-
     # @showprogress dt=1 desc="Computing..." for t in 1:tmax
-    @showprogress for i in sort(collect(keys(M.Companies)))
-        Q.psi .= u; Q.psi[i] = 0.0;
-        Q.hd .= u; Q.hu .= u;
-        err = 1.0;
-        while err > 1e-2
-            err = oneStep(M,A,Q);
+        @showprogress for i in sort(collect(keys(M.Companies)))
+            Q.psi .= u; Q.psi[i] = 0.0;
+            Q.hd .= u; Q.hu .= u;
+            Q.newhd .= u; Q.newhu .= u;
+
+            err = 1.0;
+            while err > 1e-2
+                println("------------------\n$i $err");
+                err = oneStep(M,A,Q);
+            end
+            h = 1.0 .- min.(Q.hd, Q.hu);
+            esri[i] = sum([x.sout0 * h[x.id] for x in values(M.Companies)]) / total_volume;
         end
-        # println("$i $err");
-        h = 1.0 .- min.(Q.hd, Q.hu);
-        esri[i] = sum([x.sout0 * h[x.id] for x in values(M.Companies)]) / total_volume;
-    end
     return esri;
 end
 
