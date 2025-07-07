@@ -145,68 +145,27 @@ function buildArrays(M::Market)::Arrays
     return Arrays(Λu, Λd1, Λd2, β);
 end
 
-"""
-    marketShare(M::Market, Q::DynamicalQuantities)::Nothing
-
-Calculates the market share for each company within its economic sector and updates the marketshare dictionary in the DynamicalQuantities struct `Q`.
-
-This function first computes the total, shock-adjusted sales volume for each sector. It then calculates each company's share of its respective sector's total volume. The function is designed to be numerically robust, preventing division-by-zero errors.
-
-# Arguments
-- `M::Market`: The struct containing the entire market structure, including all companies and sectors.
-- `Q::DynamicalQuantities`: The struct holding the dynamically evolving quantities, including the `marketshare` dictionary to be updated.
-
-# Returns
-- `Nothing`: The function modifies `Q.marketshare` in-place.
-"""
 function marketShare(M::Market, Q::DynamicalQuantities)::Nothing
-    # Alias for convenience to access all companies in the market.
     C = M.Companies;
-    
-    # Alias for the dictionary that will store the calculated market share for each company.
-    # The keys are company IDs and values are their market shares.
-    marketshare = Q.marketshare;
-    
-    # Get the current downstream production level for each company.
-    # hd[i] = 1 means full production, hd[i] < 1 means production is reduced by a shock.
+    # Sectors = M.Sectors;
+    marketshare = Q.marketshare; #spzeros(nrcomp);
     hd = Q.hd;
-    
-    # Initialize a dictionary to store the total sales volume for each economic sector (by NACE code).
     volumesector = Dict{Int,Float64}();
-
-    # --- Step 1: Calculate the total effective sales volume for each sector. ---
-    # Iterate over every company in the market.
     for c in values(C)
-        # Calculate the company's shock-adjusted sales (initial sales * current production level).
-        # Then, add this value to the total volume of its corresponding sector.
-        # `get(volumesector, c.nace, 0.0)` retrieves the current total for the sector, defaulting to 0.0 if the sector hasn't been seen yet.
         volumesector[c.nace] = get(volumesector, c.nace, 0.0) + c.sout0 * hd[c.id];
     end
-
-    # --- Step 2: Calculate the market share for each individual company. ---
-    # Iterate over every company again.
+    # println("----------------");
     for company in values(C)
-        # Get the company's initial, unshocked sales volume.
         sout0 = company.sout0;
-        
-        # Get the total, shock-adjusted sales volume of the sector this company belongs to.
         vol_sec = get(volumesector, company.nace, 0.0);
-
-        # This check is crucial for numerical stability.
-        # It prevents division-by-zero errors if a sector has a total volume of 0.
-        if vol_sec > 0
-            # If the sector's volume is positive, calculate the market share.
-            # The share is the company's initial sales divided by the total sector sales.
-            # `min(1.0, ...)` ensures the market share does not exceed 100%.
-            marketshare[company.id] = min(1.0, sout0 / vol_sec);
-        else
-            # If the sector's volume is 0, the company's share in that market is also 0.
-            # This handles the `0 / 0` case and prevents `NaN` or `Inf` results.
-            marketshare[company.id] = 0.0;
+        # println("company: $(company.id) nace: $(company.nace) sout0: $sout0 vol_sec: $vol_sec");
+        
+        if sout0 > 0
+            # volumesector = sum([x.sout0 * hd[id] for x in Sectors[company.nace].companies]);
+            marketshare[company.id] = min(1.0, sout0 / volumesector[company.nace]);
         end
     end
-
-    # The function modifies the marketshare dictionary within Q directly, so there is no explicit return value.
+    # println("----------------");
     return;
 end
 
@@ -268,7 +227,7 @@ function oneStep(M::Market, A::Arrays, Q::DynamicalQuantities)::Float64
         
         D_u = upStream(company, A, hu);
         newhu[id] = min(D_u, ψ[id]);
-        println("$id, $essentials, $non_essentials, $D_u, $(newhd[id]), $(newhu[id])");
+        # println("$id, $essentials, $non_essentials, $D_u, $(newhd[id]), $(newhu[id])");
     end
 
     error = max( maximum( abs.(hd .- newhd) ), maximum( abs.(hu .- newhu) ) );
@@ -299,7 +258,7 @@ function ESRI(M::Market, A::Arrays)::Vector{Float64}
 
             err = 1.0;
             while err > 1e-2
-                println("------------------\n$i $err");
+                # println("------------------\n$i $err");
                 err = oneStep(M,A,Q);
             end
             h = 1.0 .- min.(Q.hd, Q.hu);
