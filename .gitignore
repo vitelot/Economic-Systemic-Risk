@@ -34,3 +34,5 @@ input.csv
 robautile.jl
 .DS_Store
 pippo*
+*.jld2
+testing.jl

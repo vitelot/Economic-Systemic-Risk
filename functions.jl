@@ -45,6 +45,9 @@ function initializeMarket(file::String)::Market
         get!(Sectors, nace, Sector(nace));
         # push!(Sectors[nace].companies, c);
         # push!(Sectors[nace].company_ids, c.id);
+        
+        c.sout0 = sum([x.weight for x in c.customers]);
+        c.sin0 = sum([x.weight for x in c.suppliers]);
     end
     for e in Edges
         t = e.type;
@@ -83,10 +86,6 @@ function buildArrays(M::Market)::Arrays
 
     sell = sparse(vec(sum(W, dims=2)));
     # buy =  sparse(vec(sum(W, dims=1)));
-    for c in values(C)
-        c.sout0 = sum([x.weight for x in c.customers]);
-        c.sin0 = sum([x.weight for x in c.suppliers]);
-    end
 
     for l in Edges
         from = l.supplier;
@@ -157,8 +156,8 @@ function marketShare(M::Market, Q::DynamicalQuantities)::Nothing
     # println("----------------");
     for company in values(C)
         sout0 = company.sout0;
-        vol_sec = get(volumesector, company.nace, 0.0);
-        # println("company: $(company.id) nace: $(company.nace) sout0: $sout0 vol_sec: $vol_sec");
+        # vol_sec = get(volumesector, company.nace, 0.0);
+        # println("company: $(company.id) nace: $(company.nace) sout0: $sout0 vol_sec: $(volumesector[company.nace])");
         
         if sout0 > 0
             # volumesector = sum([x.sout0 * hd[id] for x in Sectors[company.nace].companies]);
@@ -195,6 +194,9 @@ function downStream(company::Company, A::Arrays, Q::DynamicalQuantities)::Tuple{
         snace = e.suppliernace;
         sid = e.supplier;
         if t == 2
+            A.lambda_d1[sid, id]
+            marketshare[sid];
+            hd[sid]
             D[snace] = get(D, snace, 0.0) + marketshare[sid] * A.lambda_d1[sid, id] * (1.0 - hd[sid]);
         elseif t==1
             D_ne += marketshare[sid] * A.lambda_d2[sid, id] * (1.0 - hd[sid]);
