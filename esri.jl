@@ -2,21 +2,22 @@ include("extern.jl");
 include("functions.jl");
 
 function main(inputfile::String="data/input.csv", outputfile::String="data/output.csv")
-    @info "Initializing the market according to input file \"$inputfile\"";
-    M = initializeMarket(inputfile);
+
 
     arrays_file = first(splitext(inputfile)) * "_arrays.jld2";
     
     # if file with arrays exists, load it with jld2
     if isfile(arrays_file)
-        @info "Loading sparse adjacency matrices from file \"$arrays_file\"";
-        A = load(arrays_file, "A");
+        @info "Restoring working space from file \"$arrays_file\"";
+        M,A = load(arrays_file, "M", "A");
         
     else 
+        @info "Initializing the market according to input file \"$inputfile\"";
+        M = initializeMarket(inputfile);
         @info "Building sparse adjacency matrices";
         A = buildArrays(M);
         @info "Saving matrices into file \"$arrays_file\"";
-        jldsave(arrays_file; A);
+        jldsave(arrays_file; M,A);
     end
 
     nthreads = Threads.nthreads();
