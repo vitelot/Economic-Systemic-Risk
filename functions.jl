@@ -249,7 +249,7 @@ function buildArrays(M::Market)::Arrays
             
             E_sector_type[supplier_nace] = x.type # Overwrites if multiple suppliers in same sector, assuming type is consistent
 
-            # Summing all weights for `nonessential_weight_sum` based on the original logic
+            # Summing ALL weights for `nonessential_weight_sum` based on the original logic
             nonessential_weight_sum += x.weight
         end
 
@@ -268,7 +268,12 @@ function buildArrays(M::Market)::Arrays
                 total_weight_essential_suppliers += sector_sum_weight
                 
                 # Normalize weights within this essential sector
-                normalized_weights = current_sector_weights ./ sector_sum_weight
+                if(sector_sum_weight > 0.0)
+                    normalized_weights = current_sector_weights ./ sector_sum_weight
+                else
+                    # there are all zeros in the vector since sector_sum_weight is zero
+                    normalized_weights = current_sector_weights;
+                end
                 
                 for i in eachindex(current_sector_supplier_ids)
                     push!(Λd1_I, current_sector_supplier_ids[i])
@@ -307,24 +312,25 @@ function marketShare(M::Market, Q::DynamicalQuantities)::Nothing
     # Sectors = M.Sectors;
     marketshare = Q.marketshare; #spzeros(nrcomp);
     hd = Q.hd;
+    
     volumesector = Dict{Int,Float64}();
     for c in values(C)
         volumesector[c.nace] = get(volumesector, c.nace, 0.0) + c.sout0 * hd[c.id];
     end
-    # println("----------------");
     for company in values(C)
         sout0 = company.sout0;
-        # vol_sec = get(volumesector, company.nace, 0.0);
-        # println("company: $(company.id) nace: $(company.nace) sout0: $sout0 vol_sec: $(volumesector[company.nace])");
+        vol_sec = volumesector[company.nace];
         
         if sout0 > 0
-            # volumesector = sum([x.sout0 * hd[id] for x in Sectors[company.nace].companies]);
-            marketshare[company.id] = min(1.0, sout0 / volumesector[company.nace]);
+            if vol_sec > 0.0
+                marketshare[company.id] = min(1.0, sout0 / vol_sec);
+            else
+                marketshare[company.id] = 1.0;
+            end
         else
             marketshare[company.id] = 0.0;
         end
     end
-    # println("----------------");
     return;
 end
 
@@ -354,9 +360,6 @@ function downStream(company::Company, A::Arrays, Q::DynamicalQuantities)::Tuple{
         snace = e.suppliernace;
         sid = e.supplier;
         if t == 2
-            # A.lambda_d1[sid, id]
-            # marketshare[sid];
-            # hd[sid]
             D[snace] = get(D, snace, 0.0) + marketshare[sid] * A.lambda_d1[sid, id] * (1.0 - hd[sid]);
         elseif t==1
             D_ne += marketshare[sid] * A.lambda_d2[sid, id] * (1.0 - hd[sid]);
@@ -425,6 +428,8 @@ function ESRI(M::Market, A::Arrays)::Vector{Float64}
             end
             h = 1.0 .- min.(Q.hd, Q.hu);
             esri[i] = sum([x.sout0 * h[x.id] for x in values(M.Companies)]) / total_volume;
+            # println("ESRI[$(M.Companies[i].name)] = $(esri[i])");
+            @assert !isnan(esri[i]);
         end
     return esri;
 end
