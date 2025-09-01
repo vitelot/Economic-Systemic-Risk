@@ -325,43 +325,39 @@ function oneStep(M::Market, A::Arrays, Q::DynamicalQuantities)::Float64
     return error;
 end
 
+# function ESRI(M::Market, A::Arrays)::Vector{Float64}
+    
+#     nrcomp = length(M.Companies);
+    
+#     @info "Initializing dynamical quantities for $nrcomp companies";
+#     Q = DynamicalQuantities(nrcomp);
+
+#     esri = Vector{Float64}(undef, nrcomp);
+#     # h    = Vector{Float64}(undef, nrcomp);
+#     total_volume = sum([x.sout0 for x in values(M.Companies)]);
+#     u = ones(nrcomp);
+#     # @showprogress dt=1 desc="Computing..." for t in 1:tmax
+#         @showprogress for i in sort(collect(keys(M.Companies)))
+#             Q.psi .= u; Q.psi[i] = 0.0;
+#             Q.hd .= u; Q.hu .= u;
+#             Q.newhd .= u; Q.newhu .= u;
+
+#             err = 1.0;
+#             while err > 1e-2
+#                 # println("------------------\n$i $err");
+#                 err = oneStep(M,A,Q);
+#             end
+#             h = 1.0 .- min.(Q.hd, Q.hu);
+#             esri[i] = sum([x.sout0 * h[x.id] for x in values(M.Companies)]) / total_volume;
+#             # println("ESRI[$(M.Companies[i].name)] = $(esri[i])");
+#             @assert !isnan(esri[i]);
+#         end
+#     return esri;
+# end
+
 function ESRI(M::Market, A::Arrays)::Vector{Float64}
     
-    nrcomp = length(M.Companies);
-    
-    @info "Initializing dynamical quantities for $nrcomp companies";
-    Q = DynamicalQuantities(nrcomp);
-
-    esri = Vector{Float64}(undef, nrcomp);
-    # h    = Vector{Float64}(undef, nrcomp);
-    total_volume = sum([x.sout0 for x in values(M.Companies)]);
-    u = ones(nrcomp);
-    # @showprogress dt=1 desc="Computing..." for t in 1:tmax
-        @showprogress for i in sort(collect(keys(M.Companies)))
-            Q.psi .= u; Q.psi[i] = 0.0;
-            Q.hd .= u; Q.hu .= u;
-            Q.newhd .= u; Q.newhu .= u;
-
-            err = 1.0;
-            while err > 1e-2
-                # println("------------------\n$i $err");
-                err = oneStep(M,A,Q);
-            end
-            h = 1.0 .- min.(Q.hd, Q.hu);
-            esri[i] = sum([x.sout0 * h[x.id] for x in values(M.Companies)]) / total_volume;
-            # println("ESRI[$(M.Companies[i].name)] = $(esri[i])");
-            @assert !isnan(esri[i]);
-        end
-    return esri;
-end
-
-function ESRI_parallel(M::Market, A::Arrays)::Vector{Float64}
-    
     nthreads = Threads.nthreads();
-    if nthreads == 1
-        println("You have only one thread selected. If you have more, pls run julia with --threads n");
-        exit();
-    end
     
     Results = DataFrame(index=Int[], esri=Float64[]);
     VR = Vector{DataFrame}(undef, nthreads);

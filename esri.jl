@@ -1,7 +1,7 @@
 include("extern.jl");
 include("functions.jl");
 
-function main(inputfile::String="data/input.csv", outputfile::String="data/output.csv")
+function main(inputfile::String="data/test_list.csv", outputfile::String="data/output.csv")
 
 
     arrays_file = first(splitext(inputfile)) * "_arrays.jld2";
@@ -20,15 +20,8 @@ function main(inputfile::String="data/input.csv", outputfile::String="data/outpu
         jldsave(arrays_file; M,A);
     end
 
-    nthreads = Threads.nthreads();
-    if nthreads > 1
-        @info "You set $nthreads cores to run the code in parallel. I'm impressed!";
-        # @info "Calculating ESRI in parallel on $nthreads threads";
-        esri = ESRI_parallel(M, A);
-    else
-        @info "Calculating ESRI sequentially";
-        esri = ESRI(M, A);
-    end
+    @info "Calculating ESRI";
+    esri = ESRI(M, A);
 
     @info "Saving the results into file \"$outputfile\"";
     saveESRI(M, esri, outputfile);
