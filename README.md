@@ -13,8 +13,6 @@ To know about the detail of the method used, please refer to the following scien
 
 3) Prepare the input CSV file with the format found in the example data/test-list.csv
 
-4) Execute `./run.sh inputfile outputfile` to estimate ESRI with a sequential code.
-
-5) Execute `./run-parallel.sh inputfile outputfile` to estimate ESRI with a parallelized code.
+4) Execute `./run.sh inputfile outputfile` to estimate ESRI with a sequential code. You will be asked how many threads to use. One thread is the same as sequential code.
 
 <br/><b>Good luck.</b>
