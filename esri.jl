@@ -1,10 +1,50 @@
 include("extern.jl");
 include("functions.jl");
 
-function main(inputfile::String="data/test_list.csv", outputfile::String="data/output.csv")
+using ArgParse, SHA
 
+function parseARGS(ARGS)
+    s = ArgParseSettings()
 
-    arrays_file = first(splitext(inputfile)) * "_arrays.jld2";
+    @add_arg_table! s begin
+        "--input"
+            help = "The input file, formatted as a .csv with: supplier,customer,supplierNACE,customerNACE,weight,type"
+            default = "data/test_list.csv" 
+        "--output"
+            help = "The desired output file"
+            default = "data/output.csv"
+        "--tmax", "-t"
+            help = "Maximum iterations per scenarios, currently not implemented"
+            arg_type = Int
+            default = typemax(Int)
+        "--psi_mat", "-p"
+            help = "The psi_mat specifying the desired scenarios. A .csv with: scenario,firm,shocksize"
+            default = 0
+        "--timeseries"
+            help = "Should the full timeseries of the ESRI calculation be returned? Not yet implemented"
+            action = :store_true
+    end
+
+    out = parse_args(ARGS, s)
+    if s["timeseries"]
+        error("Not implemented: timeseries")
+    end
+    if s["psi_mat"]!=0
+        error("Not implemented: psi_mat")
+    end
+    if s["tmax"]<typemax(Int)
+        error("Not implemented: tmax")
+    end
+    return out
+end
+
+function main(ARGS)
+    ParsedARGS = parseARGS(ARGS)
+    inputfile = ParsedARGS["input"]
+    outputfile = ParsedARGS["output"]
+    open(inputfile) do f
+        arrays_file = bytes2hex(sha512(f)) * ".jld2"
+    end
     
     # if file with arrays exists, load it with jld2
     if isfile(arrays_file)
@@ -31,4 +71,4 @@ end
 
 # esri = main("real_data/complete_edge_list.csv", "real_data/esri_complete.csv");
 # esri = main("data/test_list.csv");
-esri = main(ARGS...); # first arg is the input file, second is the output file
+esri = main(ARGS); # first arg is the input file, second is the output file
