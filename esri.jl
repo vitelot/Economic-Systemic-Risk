@@ -14,7 +14,7 @@ function parseARGS(ARGS)
             help = "The desired output file"
             default = "data/output.csv"
         "--tmax", "-t"
-            help = "Maximum iterations per scenarios, currently not implemented"
+            help = "Maximum iterations per scenario"
             arg_type = Int
             default = typemax(Int)
         "--psi_mat", "-p"
@@ -26,14 +26,11 @@ function parseARGS(ARGS)
     end
 
     out = parse_args(ARGS, s)
-    if s["timeseries"]
+    if out["timeseries"]
         error("Not implemented: timeseries")
     end
-    if s["psi_mat"]!=0
+    if out["psi_mat"]!=0
         error("Not implemented: psi_mat")
-    end
-    if s["tmax"]<typemax(Int)
-        error("Not implemented: tmax")
     end
     return out
 end
@@ -42,6 +39,7 @@ function main(ARGS)
     ParsedARGS = parseARGS(ARGS)
     inputfile = ParsedARGS["input"]
     outputfile = ParsedARGS["output"]
+    arrays_file = ""
     open(inputfile) do f
         arrays_file = bytes2hex(sha512(f)) * ".jld2"
     end
@@ -61,7 +59,7 @@ function main(ARGS)
     end
 
     @info "Calculating ESRI";
-    esri = ESRI(M, A);
+    esri = ESRI(M, A, ParsedARGS);
 
     @info "Saving the results into file \"$outputfile\"";
     saveESRI(M, esri, outputfile);

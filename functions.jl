@@ -355,8 +355,8 @@ end
 #     return esri;
 # end
 
-function ESRI(M::Market, A::Arrays)::Vector{Float64}
-    
+function ESRI(M::Market, A::Arrays, ParsedARGS)::Vector{Float64}
+    tmax = ParsedARGS["tmax"] 
     nthreads = Threads.nthreads();
     
     Results = DataFrame(index=Int[], esri=Float64[]);
@@ -372,12 +372,14 @@ function ESRI(M::Market, A::Arrays)::Vector{Float64}
     u = ones(nrcomp);
 
     Threads.@threads for i in collect(keys(M.Companies))
+        t = 1
         tid = Threads.threadid();
         VQ[tid].psi .= u; VQ[tid].psi[i] = 0.0;
         VQ[tid].hd .= u; VQ[tid].hu .= u;
         err = 1.0;
-        while err > 1e-2
+        while (err > 1e-2) & (t<tmax)
             err = oneStep(M,A,VQ[tid]);
+            t += 1
         end
         # println("Calculating esri for firm \"$(M.Companies[i].name)\" on thread $tid ");
         h = 1.0 .- min.(VQ[tid].hd, VQ[tid].hu);
