@@ -369,11 +369,11 @@ end
 #     return esri;
 # end
 
-function ESRI(M::Market, A::Arrays, psi_mat::SparseMatrixCSC, ParsedARGS)::Vector{Float64}
+function ESRI(M::Market, A::Arrays, psi_mat::SparseMatrixCSC, ParsedARGS)::DataFrame
     tmax = ParsedARGS["tmax"] 
     nthreads = Threads.nthreads();
     
-    Results = DataFrame(index=Int[], esri=Float64[]);
+    Results = DataFrame(index=Int[], esri=Float64[], t = Int[]);
     VR = Vector{DataFrame}(undef, nthreads);
     VQ = Vector{DynamicalQuantities}(undef, nthreads);
     for i = 1:nthreads
@@ -386,7 +386,7 @@ function ESRI(M::Market, A::Arrays, psi_mat::SparseMatrixCSC, ParsedARGS)::Vecto
     u = ones(nrcomp);
 
     Threads.@threads for i in axes(psi_mat,2)
-        t = 1
+        t = 0
         tid = Threads.threadid();
         indices = nzrange(psi_mat,i)
         firms = rowvals(psi_mat)[indices]
@@ -398,24 +398,31 @@ function ESRI(M::Market, A::Arrays, psi_mat::SparseMatrixCSC, ParsedARGS)::Vecto
         while (err > 1e-2) & (t<tmax)
             err = oneStep(M,A,VQ[tid]);
             t += 1
+            if ParsedARGS["timeseries"]
+                h = 1.0 .- min.(VQ[tid].hd, VQ[tid].hu);
+                esri = sum([x.sout0 * h[x.id] for x in values(M.Companies)]) / total_volume;
+                push!(VR[tid], (i, esri, t));
+            end
         end
         # println("Calculating esri for firm \"$(M.Companies[i].name)\" on thread $tid ");
-        h = 1.0 .- min.(VQ[tid].hd, VQ[tid].hu);
-        esri = sum([x.sout0 * h[x.id] for x in values(M.Companies)]) / total_volume;
-        push!(VR[tid], (i, esri));
+        if !ParsedARGS["timeseries"]
+            h = 1.0 .- min.(VQ[tid].hd, VQ[tid].hu);
+            esri = sum([x.sout0 * h[x.id] for x in values(M.Companies)]) / total_volume;
+            push!(VR[tid], (i, esri, t));
+        end
     end
 
-    df = sort(vcat(VR...), :index);
-    return df.esri;
+    df = sort(vcat(VR...), [:index,:t]);
+    return df;
 end
 
-function saveESRI(M::Market, esri::Vector{Float64}, outfile::String, ParsedARGS)
+function saveESRI(M::Market, esri::DataFrame, outfile::String, ParsedARGS)
     if ParsedARGS["psi_mat"] == 0
-        companies = [x.name for x in sort(collect(values(M.Companies)), by=x->x.id)];
-        dfout = DataFrame(company=companies, esri=esri);
+        companies = getfield.(getindex.(Ref(M.Companies),esri.index),:name)
+        dfout = DataFrame(company=companies, esri=esri.esri, t = esri.t);
         CSV.write(outfile, dfout);
     else
-        dfout = DataFrame(scenario = collect(1:length(esri)),esri=esri)
+        dfout = DataFrame(scenario = esri.index, esri=esri.esri, t=esri.t)
         CSV.write(outfile,dfout)
     end
 end

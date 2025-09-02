@@ -21,14 +21,11 @@ function parseARGS(ARGS)
             help = "The psi_mat specifying the desired scenarios. A .csv with: scenario,firm,shocksize"
             default = 0
         "--timeseries"
-            help = "Should the full timeseries of the ESRI calculation be returned? Not yet implemented"
+            help = "Should the full timeseries of the ESRI calculation be returned?"
             action = :store_true
     end
 
     out = parse_args(ARGS, s)
-    if out["timeseries"]
-        error("Not implemented: timeseries")
-    end
     return out
 end
 
@@ -63,7 +60,7 @@ function main(ARGS)
     @info "Saving the results into file \"$outputfile\"";
     saveESRI(M, esri, outputfile, ParsedARGS);
 
-    return esri;
+    return esri.esri;
 end
 
 esri = main(ARGS); # ARGS are parsed in the function. First 2 arguments should be input and output, then some options
