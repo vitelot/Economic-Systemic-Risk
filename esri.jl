@@ -7,10 +7,10 @@ function parseARGS(ARGS)
     s = ArgParseSettings()
 
     @add_arg_table! s begin
-        "--input"
+        "input"
             help = "The input file, formatted as a .csv with: supplier,customer,supplierNACE,customerNACE,weight,type"
             default = "data/test_list.csv" 
-        "--output"
+        "output"
             help = "The desired output file"
             default = "data/output.csv"
         "--tmax", "-t"
