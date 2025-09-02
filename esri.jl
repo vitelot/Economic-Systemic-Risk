@@ -29,9 +29,6 @@ function parseARGS(ARGS)
     if out["timeseries"]
         error("Not implemented: timeseries")
     end
-    if out["psi_mat"]!=0
-        error("Not implemented: psi_mat")
-    end
     return out
 end
 
@@ -58,15 +55,15 @@ function main(ARGS)
         jldsave(arrays_file; M,A);
     end
 
+    psi_mat = parsePsiMat(ParsedARGS["psi_mat"],M)
+
     @info "Calculating ESRI";
-    esri = ESRI(M, A, ParsedARGS);
+    esri = ESRI(M, A, psi_mat, ParsedARGS);
 
     @info "Saving the results into file \"$outputfile\"";
-    saveESRI(M, esri, outputfile);
+    saveESRI(M, esri, outputfile, ParsedARGS);
 
     return esri;
 end
 
-# esri = main("real_data/complete_edge_list.csv", "real_data/esri_complete.csv");
-# esri = main("data/test_list.csv");
-esri = main(ARGS); # first arg is the input file, second is the output file
+esri = main(ARGS); # ARGS are parsed in the function. First 2 arguments should be input and output, then some options

@@ -65,6 +65,20 @@ function initializeMarket(file::String)::Market
     return M;
 end
 
+function parsePsiMat(file,M::Market)
+    nfirms = length(M.Companies)
+    if file==0
+        @info "Using diagonal psi_mat"
+        return sparse(I(nfirms))
+    end
+    @info "Reading provided psi_mat at $file"
+    data = CSV.read(file,DataFrame,types=Dict(1=>Int,2=>String,3=>Float64))
+    firmids = getindex.(Ref(M.CompanyID),strip.(data[:,2])) # strip removes leading and trailing whitespaces. In case the csv is a bit broken
+    nscenarios = maximum(data[:,1])
+    psi_mat = sparse(firmids,data[:,1],data[:,3],nfirms,nscenarios) 
+    return psi_mat
+end
+
 """
     buildArrays(M::Market)::Arrays
 
@@ -355,7 +369,7 @@ end
 #     return esri;
 # end
 
-function ESRI(M::Market, A::Arrays, ParsedARGS)::Vector{Float64}
+function ESRI(M::Market, A::Arrays, psi_mat::SparseMatrixCSC, ParsedARGS)::Vector{Float64}
     tmax = ParsedARGS["tmax"] 
     nthreads = Threads.nthreads();
     
@@ -371,10 +385,14 @@ function ESRI(M::Market, A::Arrays, ParsedARGS)::Vector{Float64}
     total_volume = sum([x.sout0 for x in values(M.Companies)]);
     u = ones(nrcomp);
 
-    Threads.@threads for i in collect(keys(M.Companies))
+    Threads.@threads for i in axes(psi_mat,2)
         t = 1
         tid = Threads.threadid();
-        VQ[tid].psi .= u; VQ[tid].psi[i] = 0.0;
+        indices = nzrange(psi_mat,i)
+        firms = rowvals(psi_mat)[indices]
+        psi = 1 .- nonzeros(psi_mat)[indices]
+
+        VQ[tid].psi .= u; VQ[tid].psi[firms] = psi;
         VQ[tid].hd .= u; VQ[tid].hu .= u;
         err = 1.0;
         while (err > 1e-2) & (t<tmax)
@@ -391,8 +409,13 @@ function ESRI(M::Market, A::Arrays, ParsedARGS)::Vector{Float64}
     return df.esri;
 end
 
-function saveESRI(M::Market, esri::Vector{Float64}, outfile::String)
-    companies = [x.name for x in sort(collect(values(M.Companies)), by=x->x.id)];
-    dfout = DataFrame(company=companies, esri=esri);
-    CSV.write(outfile, dfout);
+function saveESRI(M::Market, esri::Vector{Float64}, outfile::String, ParsedARGS)
+    if ParsedARGS["psi_mat"] == 0
+        companies = [x.name for x in sort(collect(values(M.Companies)), by=x->x.id)];
+        dfout = DataFrame(company=companies, esri=esri);
+        CSV.write(outfile, dfout);
+    else
+        dfout = DataFrame(scenario = collect(1:length(esri)),esri=esri)
+        CSV.write(outfile,dfout)
+    end
 end
