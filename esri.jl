@@ -1,16 +1,14 @@
 include("extern.jl");
 include("functions.jl");
 
-using ArgParse, SHA
-
 function parseARGS(ARGS)
     s = ArgParseSettings()
 
     @add_arg_table! s begin
-        "input"
+        "--input", "-i"
             help = "The input file, formatted as a .csv with: supplier,customer,supplierNACE,customerNACE,weight,type"
             default = "data/test_list.csv" 
-        "output"
+        "--output", "-o"
             help = "The desired output file"
             default = "data/output.csv"
         "--tmax", "-t"
@@ -35,7 +33,7 @@ function main(ARGS)
     outputfile = ParsedARGS["output"]
     arrays_file = ""
     open(inputfile) do f
-        arrays_file = bytes2hex(sha512(f)) * ".jld2"
+        arrays_file = bytes2hex(sha1(f)) * ".jld2"
     end
     
     # if file with arrays exists, load it with jld2

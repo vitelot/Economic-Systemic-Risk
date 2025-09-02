@@ -1,6 +1,8 @@
 @info "Loading libraries";
 using CSV, DataFrames, JLD2, SparseArrays, ProgressMeter;
 using LinearAlgebra: normalize!, I;
+using ArgParse, SHA
+
 # import Base.copy;
 
 struct Edge
