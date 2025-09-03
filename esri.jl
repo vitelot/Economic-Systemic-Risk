@@ -17,7 +17,8 @@ function parseARGS(ARGS)
             default = typemax(Int)
         "--psi_mat", "-p"
             help = "The psi_mat specifying the desired scenarios. A .csv with: scenario,firm,shocksize"
-            default = 0
+            default = ""
+            arg_type = String
         "--timeseries"
             help = "Should the full timeseries of the ESRI calculation be returned?"
             action = :store_true

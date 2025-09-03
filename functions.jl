@@ -65,9 +65,9 @@ function initializeMarket(file::String)::Market
     return M;
 end
 
-function parsePsiMat(file::Int, M::Market)
+function parsePsiMat(file::String, M::Market)
     nfirms = length(M.Companies)
-    if file==0
+    if file==""
         @info "Using diagonal psi_mat"
         return sparse(I(nfirms))
     end
