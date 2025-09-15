@@ -417,7 +417,7 @@ function ESRI(M::Market, A::Arrays, psi_mat::SparseMatrixCSC, ParsedARGS)::DataF
 end
 
 function saveESRI(M::Market, esri::DataFrame, outfile::String, ParsedARGS)
-    if ParsedARGS["psi_mat"] == 0
+    if ParsedARGS["psi_mat"] == ""
         companies = getfield.(getindex.(Ref(M.Companies),esri.index),:name)
         dfout = DataFrame(company=companies, esri=esri.esri, t = esri.t);
         CSV.write(outfile, dfout);
