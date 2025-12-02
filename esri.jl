@@ -1,6 +1,12 @@
 include("extern.jl");
 include("functions.jl");
 
+"""
+    parseARGS(ARGS)
+
+Parses command-line arguments using `ArgParse`.
+Configuration options include input/output paths, max iterations (`--tmax`), shock scenarios (`--psi_mat`), and timeseries flags.
+"""
 function parseARGS(ARGS)
     s = ArgParseSettings()
 
@@ -28,6 +34,16 @@ function parseARGS(ARGS)
     return out
 end
 
+"""
+    main(ARGS)
+
+Entry point for the script.
+1. Parses arguments.
+2. Initializes the `Market` (loading from CSV or cached `.jld2` arrays).
+3. Constructs the shock scenarios (`psi_mat`).
+4. Runs the `ESRI` calculation.
+5. Saves the results to disk.
+"""
 function main(ARGS)
     ParsedARGS = parseARGS(ARGS)
     inputfile = ParsedARGS["input"]

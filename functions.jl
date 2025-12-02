@@ -1,3 +1,10 @@
+"""
+    initializeMarket(file::String)::Market
+
+Reads the input CSV file (edge list) and constructs the `Market` object.
+It initializes `Company` nodes, `Edge` connections, and `Sector` classifications,
+identifying essential and non-essential links based on the input columns.
+"""
 function initializeMarket(file::String)::Market
 
     df = CSV.read(file, 
@@ -65,6 +72,13 @@ function initializeMarket(file::String)::Market
     return M;
 end
 
+"""
+    parsePsiMat(file::String, M::Market)
+
+Parses the scenario matrix file (`psi_mat`) defining the shocks.
+- If `file` is empty, it returns a diagonal sparse identity matrix (implying single-firm shock scenarios for every firm).
+- Otherwise, it reads the CSV to construct a sparse matrix where columns represent scenarios and rows represent firms.
+"""
 function parsePsiMat(file::String, M::Market)
     nfirms = length(M.Companies)
     if file==""
@@ -82,15 +96,14 @@ end
 """
     buildArrays(M::Market)::Arrays
 
-Constructs sparse matrices and vectors representing various relationships
-within a market, based on company and edge data.
-
-# Arguments
-- `M::Market`: A Market object containing company and edge information.
+Converts the object-oriented `Market` graph into the sparse algebraic structures required for the linear algebra operations.
 
 # Returns
-- `Arrays`: An object containing the constructed sparse matrices (Λu, Λd1, Λd2)
-  and a sparse vector (β).
+`Arrays` struct containing:
+- `lambda_u`: Upstream adjacency matrix (customer to supplier).
+- `lambda_d1`: Downstream adjacency matrix for **essential** inputs.
+- `lambda_d2`: Downstream adjacency matrix for **non-essential** inputs.
+- `beta`: Vector representing the share of essential inputs for each firm.
 """
 function buildArrays(M::Market)::Arrays
     C = M.Companies
@@ -242,6 +255,13 @@ function buildArrays(M::Market)::Arrays
     return Arrays(Λu, Λd1, Λd2, β)
 end
 
+"""
+    marketShare(M::Market, Q::DynamicalQuantities)::Nothing
+
+Updates the dynamic market share of each company within its sector.
+Calculated as the ratio of the company's current output (s_{out,0} ⋅ h_d) 
+to the total current output of its sector.
+"""
 function marketShare(M::Market, Q::DynamicalQuantities)::Nothing
     C = M.Companies;
     # Sectors = M.Sectors;
@@ -269,6 +289,12 @@ function marketShare(M::Market, Q::DynamicalQuantities)::Nothing
     return;
 end
 
+"""
+    upStream(company::Company, A::Arrays, hu::Vector{Float64})::Float64
+
+Calculates the upstream demand shock (D_u) for a specific `company`.
+This aggregates the health of customers (h_u) weighted by the upstream matrix Λ_u.
+"""
 function upStream(company::Company, A::Arrays, hu::Vector{Float64})::Float64
     company.sout0 == 0.0 && return 1.0; # no customers -> no upstream shock
     D_u = 0.0;
@@ -280,6 +306,16 @@ function upStream(company::Company, A::Arrays, hu::Vector{Float64})::Float64
     return D_u;
 end
 
+"""
+    downStream(company::Company, A::Arrays, Q::DynamicalQuantities)::Tuple{Float64,Float64}
+
+Calculates the downstream supply availability for a specific `company`.
+
+# Returns
+A tuple `(essentials, non_essentials)`:
+- `essentials`: The available supply from essential inputs (using Λ_d1).
+- `non_essentials`: The available supply from non-essential inputs (using Λ_d2).
+"""
 function downStream(company::Company, A::Arrays, Q::DynamicalQuantities)::Tuple{Float64,Float64}
 
     marketshare = Q.marketshare;
@@ -307,6 +343,17 @@ function downStream(company::Company, A::Arrays, Q::DynamicalQuantities)::Tuple{
     return essentials, non_essentials;
 end
 
+"""
+    oneStep(M::Market, A::Arrays, Q::DynamicalQuantities)::Float64
+
+Performs a single iteration of the fixed-point algorithm to update production levels.
+1. Updates market shares.
+2. Computes new downstream (h_d) and upstream (h_u) levels for all firms.
+3. Updates `Q` in place.
+
+# Returns
+The maximum error (Chebyshev distance) between the previous and current state, used for convergence checking.
+"""
 function oneStep(M::Market, A::Arrays, Q::DynamicalQuantities)::Float64
     C = M.Companies;
     # Sectors = M.Sectors;
@@ -339,36 +386,16 @@ function oneStep(M::Market, A::Arrays, Q::DynamicalQuantities)::Float64
     return error;
 end
 
-# function ESRI(M::Market, A::Arrays)::Vector{Float64}
-    
-#     nrcomp = length(M.Companies);
-    
-#     @info "Initializing dynamical quantities for $nrcomp companies";
-#     Q = DynamicalQuantities(nrcomp);
+"""
+    ESRI(M::Market, A::Arrays, psi_mat::SparseMatrixCSC, ParsedARGS)::DataFrame
 
-#     esri = Vector{Float64}(undef, nrcomp);
-#     # h    = Vector{Float64}(undef, nrcomp);
-#     total_volume = sum([x.sout0 for x in values(M.Companies)]);
-#     u = ones(nrcomp);
-#     # @showprogress dt=1 desc="Computing..." for t in 1:tmax
-#         @showprogress for i in sort(collect(keys(M.Companies)))
-#             Q.psi .= u; Q.psi[i] = 0.0;
-#             Q.hd .= u; Q.hu .= u;
-#             Q.newhd .= u; Q.newhu .= u;
+The main simulation engine.
+It iterates through scenarios defined in `psi_mat` (columns) using multi-threading (`Threads.@threads`).
+For each scenario, it converges the `oneStep` function until the error is below a threshold or `tmax` is reached.
 
-#             err = 1.0;
-#             while err > 1e-2
-#                 # println("------------------\n$i $err");
-#                 err = oneStep(M,A,Q);
-#             end
-#             h = 1.0 .- min.(Q.hd, Q.hu);
-#             esri[i] = sum([x.sout0 * h[x.id] for x in values(M.Companies)]) / total_volume;
-#             # println("ESRI[$(M.Companies[i].name)] = $(esri[i])");
-#             @assert !isnan(esri[i]);
-#         end
-#     return esri;
-# end
-
+# Returns
+A `DataFrame` containing the index of the scenario, the calculated ESRI value, and the number of iterations required.
+"""
 function ESRI(M::Market, A::Arrays, psi_mat::SparseMatrixCSC, ParsedARGS)::DataFrame
     tmax = ParsedARGS["tmax"] 
     nthreads = Threads.nthreads();
@@ -416,6 +443,13 @@ function ESRI(M::Market, A::Arrays, psi_mat::SparseMatrixCSC, ParsedARGS)::DataF
     return df;
 end
 
+"""
+    saveESRI(M::Market, esri::DataFrame, outfile::String, ParsedARGS)
+
+Saves the computed ESRI results to a CSV file.
+- If no custom `psi_mat` was used, it maps indices back to Company names.
+- If a custom `psi_mat` was used, it saves Scenario indices.
+"""
 function saveESRI(M::Market, esri::DataFrame, outfile::String, ParsedARGS)
     if ParsedARGS["psi_mat"] == ""
         companies = getfield.(getindex.(Ref(M.Companies),esri.index),:name)
