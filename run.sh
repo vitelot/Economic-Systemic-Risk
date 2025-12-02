@@ -5,7 +5,7 @@ read nthreads
 echo 
 
 if [ $# = 0 ]; then
-    echo "No filenames provided. Continuing with default data/input.csv and data/output.csv"
+    echo "No filenames provided. Continuing with default data/test_list.csv and data/output.csv"
 elif [ $# = 1 ]; then
     echo "No output filename provided. Continuing with default data/output.csv"
 elif [ $# = 2 ]; then
