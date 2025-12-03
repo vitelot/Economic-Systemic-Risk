@@ -398,16 +398,33 @@ A `DataFrame` containing the index of the scenario, the calculated ESRI value, a
 """
 function ESRI(M::Market, A::Arrays, psi_mat::SparseMatrixCSC, ParsedARGS)::DataFrame
     tmax = ParsedARGS["tmax"] 
-    nthreads = Threads.nthreads();
+    # nthreads = Threads.nthreads();
     
+    # Results = DataFrame(index=Int[], esri=Float64[], t = Int[]);
+    # VR = Vector{DataFrame}(undef, nthreads);
+    # VQ = Vector{DynamicalQuantities}(undef, nthreads);
+    # for i = 1:nthreads
+    #     VR[i] = copy(Results);
+    #     VQ[i] = DynamicalQuantities(length(M.Companies));
+    # end
+    # @info 1
+    # FIX: Use maxthreadid() if available to handle non-contiguous thread IDs
+    # This prevents the "BoundsError at index [3]" when nthreads is 2
+    max_tid = isdefined(Threads, :maxthreadid) ? Threads.maxthreadid() : Threads.nthreads()
+    
+    @info "Using $max_tid threads"
+
     Results = DataFrame(index=Int[], esri=Float64[], t = Int[]);
-    VR = Vector{DataFrame}(undef, nthreads);
-    VQ = Vector{DynamicalQuantities}(undef, nthreads);
-    for i = 1:nthreads
+    
+    # Allocate vectors up to the highest possible Thread ID
+    VR = Vector{DataFrame}(undef, max_tid);
+    VQ = Vector{DynamicalQuantities}(undef, max_tid);
+    
+    # Initialize all potential slots
+    for i = 1:max_tid
         VR[i] = copy(Results);
         VQ[i] = DynamicalQuantities(length(M.Companies));
     end
-    # @info 1
     nrcomp = length(M.Companies);
     total_volume = sum([x.sout0 for x in values(M.Companies)]);
     u = ones(nrcomp);
