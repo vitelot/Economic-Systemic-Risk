@@ -278,9 +278,9 @@ function marketShare(M::Market, Q::DynamicalQuantities)::Nothing
         
         if sout0 > 0
             if vol_sec > 0.0
-                marketshare[company.id] = min(1.0, sout0 / vol_sec);
+                marketshare[company.id] = min(MSROOF, sout0 / vol_sec);
             else
-                marketshare[company.id] = 1.0;
+                marketshare[company.id] = MSROOF;
             end
         else
             marketshare[company.id] = 0.0;

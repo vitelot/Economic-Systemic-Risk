@@ -3,6 +3,8 @@ using CSV, DataFrames, JLD2, SparseArrays, ProgressMeter;
 using LinearAlgebra: normalize!, I;
 using ArgParse, SHA
 
+const MSROOF = 0.56;
+
 """
     Edge
 
