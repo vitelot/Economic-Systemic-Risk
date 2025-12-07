@@ -73,6 +73,24 @@ function initializeMarket(file::String)::Market
 end
 
 """
+    initSectorVolumes!(M::Market, Q::DynamicalQuantities)
+    
+Calculates the initial total volume for every sector once at startup.
+"""
+function initSectorVolumes!(M::Market, Q::DynamicalQuantities)::Nothing
+    # Reset
+    empty!(Q.sector_volume)
+    
+    # O(N) run - ONLY done once at the very beginning
+    for c in values(M.Companies)
+        # We assume initial health (hd) is 1.0, so volume is just sout0
+        current_vol = c.sout0 # * 1.0 
+        Q.sector_volume[c.nace] = get(Q.sector_volume, c.nace, 0.0) + current_vol
+    end
+    return
+end
+
+"""
     parsePsiMat(file::String, M::Market)
 
 Parses the scenario matrix file (`psi_mat`) defining the shocks.
@@ -316,27 +334,50 @@ A tuple `(essentials, non_essentials)`:
 - `essentials`: The available supply from essential inputs (using Λ_d1).
 - `non_essentials`: The available supply from non-essential inputs (using Λ_d2).
 """
-function downStream(company::Company, A::Arrays, Q::DynamicalQuantities)::Tuple{Float64,Float64}
-
-    marketshare = Q.marketshare;
+function downStream(company::Company, A::Arrays, Q::DynamicalQuantities, M::Market)::Tuple{Float64,Float64}
+    
+    # Note: We need M passed in to access supplier.sout0
+    # If performance is still tight, sout0 should be in A (Arrays), but keeping to your Dict constraint:
+    
     hd = Q.hd;
+    sector_vol = Q.sector_volume;
 
     id = company.id;
 
-    D = Dict{Int,Float64}(); # partial sums by essential sector, i.e., Π_ik in the paper
+    D = Dict{Int,Float64}(); 
     D_ne = 0.0; # non-essential contribution 
 
     for e in company.suppliers
-        t = e.type;
-        snace = e.suppliernace;
         sid = e.supplier;
+        snace = e.suppliernace;
+        
+        # --- LAZY MARKET SHARE CALCULATION ---
+        # Instead of looking up a pre-calc vector, we compute it now.
+        # Share = (Output * Health) / Total_Sector_Volume
+        
+        tot_vol = get(sector_vol, snace, 0.0)
+        
+        # If total volume is 0, share is 0 (or 1 if being lenient, but 0 makes sense here)
+        m_share = 0.0
+        if tot_vol > 0.0
+            # We need the supplier object to get its initial output (sout0)
+            # Accessing M.Companies[sid] is a Dict lookup. 
+            supp_obj = M.Companies[sid]
+            m_share = (supp_obj.sout0 * hd[sid]) / tot_vol
+            
+            # Clamp to max 1.0 to prevent numerical drift errors
+            if m_share > 1.0 m_share = 1.0 end
+        end
+        # -------------------------------------
+
+        t = e.type;
         if t == 2
-            D[snace] = get(D, snace, 0.0) + marketshare[sid] * A.lambda_d1[sid, id] * (1.0 - hd[sid]);
+            D[snace] = get(D, snace, 0.0) + m_share * A.lambda_d1[sid, id] * (1.0 - hd[sid]);
         elseif t==1
-            D_ne += marketshare[sid] * A.lambda_d2[sid, id] * (1.0 - hd[sid]);
+            D_ne += m_share * A.lambda_d2[sid, id] * (1.0 - hd[sid]);
         end
     end
-    # println(id)
+
     essentials = 1.0 - maximum(values(D), init=0.0);
     non_essentials = 1.0 - D_ne;
 
@@ -355,35 +396,65 @@ Performs a single iteration of the fixed-point algorithm to update production le
 The maximum error (Chebyshev distance) between the previous and current state, used for convergence checking.
 """
 function oneStep(M::Market, A::Arrays, Q::DynamicalQuantities)::Float64
-    C = M.Companies;
-    # Sectors = M.Sectors;
     hd = Q.hd;
     hu = Q.hu;
     ψ = Q.psi;
+    newhd = Q.newhd;
+    newhu = Q.newhu;
 
-    newhd = Q.newhd ; #copy(hd); # use similar later
-    newhu = Q.newhu; #copy(hu);
+    # REMOVED: marketShare(M,Q) -> No longer iterating all firms here.
 
-    marketShare(M,Q);
+    # 1. Clear the tracker for changed firms
+    empty!(Q.changed_indices)
 
-    # company = C[1302];
-    for company in values(C)
+    # 2. Main Computation Loop (Must visit all to check convergence/propagation)
+    # (We could optimize this to a push-based queue later, but that's a graph traversal change)
+    max_err = 0.0
+    
+    for company in values(M.Companies)
         id = company.id;
-        essentials, non_essentials = downStream(company, A, Q);
-        newhd[id] = minimum((essentials, non_essentials, ψ[id]));
+        
+        # Pass M to downStream for lazy lookup
+        essentials, non_essentials = downStream(company, A, Q, M);
+        
+        newhd[id] = min(essentials, non_essentials, ψ[id]);
         
         D_u = upStream(company, A, hu);
         newhu[id] = min(D_u, ψ[id]);
-        # println("$id, $essentials, $non_essentials, $D_u, $(newhd[id]), $(newhu[id])");
+
+        # Check error locally
+        diff = max(abs(hd[id] - newhd[id]), abs(hu[id] - newhu[id]))
+        if diff > max_err
+            max_err = diff
+        end
+
+        # Identify if this firm CHANGED significantly
+        # If hd changed, it affects the total volume of its sector.
+        if abs(hd[id] - newhd[id]) > 1e-9
+            push!(Q.changed_indices, id)
+        end
     end
 
-    error = max( maximum( abs.(hd .- newhd) ), maximum( abs.(hu .- newhu) ) );
+    # 3. DELTA UPDATE: Update Sector Volumes
+    # We ONLY iterate over the "tiny fraction" of firms that changed.
+    for id in Q.changed_indices
+        delta_h = newhd[id] - hd[id]
+        
+        # We need the company's sector and initial output
+        comp = M.Companies[id]
+        
+        # Update Total = Old_Total + (sout0 * delta_h)
+        # This adds the new contribution and implicitly subtracts the old one
+        current_tot = get(Q.sector_volume, comp.nace, 0.0)
+        Q.sector_volume[comp.nace] = current_tot + (comp.sout0 * delta_h)
+    end
 
-    # garbage collector friendly: copy vectors without changing Q
-    Q.hd .= newhd;
-    Q.hu .= newhu;
+    # 4. Commit State
+    # Copy newhd -> hd
+    Q.hd .= newhd
+    Q.hu .= newhu
 
-    return error;
+    return max_err;
 end
 
 """
@@ -423,7 +494,10 @@ function ESRI(M::Market, A::Arrays, psi_mat::SparseMatrixCSC, ParsedARGS)::DataF
     # Initialize all potential slots
     for i = 1:max_tid
         VR[i] = copy(Results);
-        VQ[i] = DynamicalQuantities(length(M.Companies));
+        VQ[i] = DynamicalQuantities(length(M.Companies));       # CRITICAL: Calculate initial sector sums once
+        # CRITICAL: Calculate initial sector sums once
+        initSectorVolumes!(M, VQ[i]) 
+
     end
     nrcomp = length(M.Companies);
     total_volume = sum([x.sout0 for x in values(M.Companies)]);

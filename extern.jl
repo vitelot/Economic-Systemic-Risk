@@ -100,37 +100,39 @@ end
 Holds the state vectors and temporary arrays for the iterative simulation (fixed-point algorithm).
 
 # Fields
-- `marketshare::Dict{Int,Float64}`: Dynamic market share of firms within their sector (updates during simulation).
 - `hd::Vector{Float64}`: Downstream production level (health) of firms, range [0,1].
 - `hu::Vector{Float64}`: Upstream demand level (health) of firms, range [0,1].
 - `newhd` / `newhu`: Buffers for storing the next step's state before update.
 - `psi::Vector{Float64}`: The exogenous constraint/shock vector for the current scenario.
 """
-struct DynamicalQuantities
-    marketshare::Dict{Int,Float64};
-
-    hd::Vector{Float64}; # downstream relative production level
-    hu::Vector{Float64}; # upstream relative production level
+mutable struct DynamicalQuantities
+    # REMOVED: marketshare::Dict{Int,Float64} or Vector 
+    # We no longer store individual shares.
     
-    newhd::Vector{Float64}; # downstream relative production level
-    newhu::Vector{Float64}; # upstream relative production level
+    hd::Vector{Float64}; 
+    hu::Vector{Float64}; 
+    newhd::Vector{Float64}; 
+    newhu::Vector{Float64}; 
+    psi::Vector{Float64}; 
     
-    psi::Vector{Float64}; # initial constraint
+    # NEW: Stores the total production volume of each sector (The Denominator)
+    sector_volume::Dict{Int, Float64}; 
     
-    # DynamicalQuantities(dim::Int) = new(Dict{Int,Float64}(), ones(dim), ones(dim), ones(dim), ones(dim), ones(dim));
+    # NEW: To keep track of which firms changed to optimize the update loop
+    changed_indices::Vector{Int}; 
 
     function DynamicalQuantities(dim::Int)
-        
-        marketshare = Dict{Int,Float64}();
         hd = Vector{Float64}(undef, dim);
         hu = Vector{Float64}(undef, dim);
         newhd = Vector{Float64}(undef, dim);
         newhu = Vector{Float64}(undef, dim);
         psi = Vector{Float64}(undef, dim);
         
-        return new(marketshare, hd, hu, newhd, newhu, psi);
+        sector_volume = Dict{Int, Float64}();
+        changed_indices = Int[]; # Grows dynamically
+        
+        return new(hd, hu, newhd, newhu, psi, sector_volume, changed_indices);
     end
-
 end
 
 """
