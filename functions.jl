@@ -439,7 +439,7 @@ function ESRI(M::Market, A::Arrays, psi_mat::SparseMatrixCSC, ParsedARGS)::DataF
         VQ[tid].psi .= u; VQ[tid].psi[firms] = psi;
         VQ[tid].hd .= u; VQ[tid].hu .= u;
         err = 1.0;
-        while (err > 1e-2) & (t<tmax)
+        while (err > 1e-2) && (t<tmax)
             err = oneStep(M,A,VQ[tid]);
             t += 1
             if ParsedARGS["timeseries"]
