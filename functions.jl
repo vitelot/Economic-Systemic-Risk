@@ -494,10 +494,7 @@ function ESRI(M::Market, A::Arrays, psi_mat::SparseMatrixCSC, ParsedARGS)::DataF
     # Initialize all potential slots
     for i = 1:max_tid
         VR[i] = copy(Results);
-        VQ[i] = DynamicalQuantities(length(M.Companies));       # CRITICAL: Calculate initial sector sums once
-        # CRITICAL: Calculate initial sector sums once
-        initSectorVolumes!(M, VQ[i]) 
-
+        VQ[i] = DynamicalQuantities(length(M.Companies));
     end
     nrcomp = length(M.Companies);
     total_volume = sum([x.sout0 for x in values(M.Companies)]);
@@ -512,6 +509,11 @@ function ESRI(M::Market, A::Arrays, psi_mat::SparseMatrixCSC, ParsedARGS)::DataF
 
         VQ[tid].psi .= u; VQ[tid].psi[firms] = psi;
         VQ[tid].hd .= u; VQ[tid].hu .= u;
+
+        # CRITICAL: Calculate initial sector sums once
+        initSectorVolumes!(M, VQ[tid]) 
+       # println("$i $(VQ[i].sector_volume)");
+
         err = 1.0;
         while (err > 1e-2) && (t<tmax)
             err = oneStep(M,A,VQ[tid]);
