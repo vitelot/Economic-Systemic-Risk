@@ -274,40 +274,6 @@ function buildArrays(M::Market)::Arrays
 end
 
 """
-    marketShare(M::Market, Q::DynamicalQuantities)::Nothing
-
-Updates the dynamic market share of each company within its sector.
-Calculated as the ratio of the company's current output (s_{out,0} ⋅ h_d) 
-to the total current output of its sector.
-"""
-function marketShare(M::Market, Q::DynamicalQuantities)::Nothing
-    C = M.Companies;
-    # Sectors = M.Sectors;
-    marketshare = Q.marketshare; #spzeros(nrcomp);
-    hd = Q.hd;
-    
-    volumesector = Dict{Int,Float64}();
-    for c in values(C)
-        volumesector[c.nace] = get(volumesector, c.nace, 0.0) + c.sout0 * hd[c.id];
-    end
-    for company in values(C)
-        sout0 = company.sout0;
-        vol_sec = volumesector[company.nace];
-        
-        if sout0 > 0
-            if vol_sec > 0.0
-                marketshare[company.id] = min(1.0, sout0 / vol_sec);
-            else
-                marketshare[company.id] = 1.0;
-            end
-        else
-            marketshare[company.id] = 0.0;
-        end
-    end
-    return;
-end
-
-"""
     upStream(company::Company, A::Arrays, hu::Vector{Float64})::Float64
 
 Calculates the upstream demand shock (D_u) for a specific `company`.
