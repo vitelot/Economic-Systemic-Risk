@@ -275,16 +275,17 @@ function marketShare(M::Market, Q::DynamicalQuantities)::Nothing
     for company in values(C)
         sout0 = company.sout0;
         vol_sec = volumesector[company.nace];
-        
+        cid = company.id;
         if sout0 > 0
             if vol_sec > 0.0
-                marketshare[company.id] = min(1.0, sout0 / vol_sec);
+                marketshare[cid] = min(1.0, sout0 / vol_sec);
             else
-                marketshare[company.id] = 1.0;
+                marketshare[cid] = 1.0;
             end
         else
-            marketshare[company.id] = 0.0;
+            marketshare[cid] = 0.0;
         end
+        # println("$cid $(marketshare[cid])");
     end
     return;
 end
@@ -370,7 +371,7 @@ function oneStep(M::Market, A::Arrays, Q::DynamicalQuantities)::Float64
     for company in values(C)
         id = company.id;
         essentials, non_essentials = downStream(company, A, Q);
-        newhd[id] = minimum((essentials, non_essentials, ψ[id]));
+        newhd[id] = min(essentials, non_essentials, ψ[id]);
         
         D_u = upStream(company, A, hu);
         newhu[id] = min(D_u, ψ[id]);
