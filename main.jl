@@ -61,6 +61,8 @@ function main(ARGS)
     else 
         @info "Initializing the market according to input file \"$inputfile\"";
         M = initializeMarket(inputfile);
+        # pprintln(M);
+
         @info "Building sparse adjacency matrices";
         A = buildArrays(M);
         @info "Saving matrices into file \"$arrays_file\"";

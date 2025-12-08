@@ -72,6 +72,13 @@ function initializeMarket(file::String)::Market
     return M;
 end
 
+function initSectorVolumes!(M::Market, Q::DynamicalQuantities)
+    for c in values(M.Companies)
+        Q.initial_sector_volumes[c.nace] = get(Q.initial_sector_volumes, c.nace, 0.0) + c.sout0;
+    end
+
+end
+
 """
     parsePsiMat(file::String, M::Market)
 
@@ -268,13 +275,18 @@ function marketShare(M::Market, Q::DynamicalQuantities)::Nothing
     marketshare = Q.marketshare; #spzeros(nrcomp);
     hd = Q.hd;
     
-    volumesector = Dict{Int,Float64}();
-    for c in values(C)
-        volumesector[c.nace] = get(volumesector, c.nace, 0.0) + c.sout0 * hd[c.id];
+    sector_volumes = copy(Q.initial_sector_volumes);
+    # for c in values(C)
+    #     sector_volumes[c.nace] = get(sector_volumes, c.nace, 0.0) + c.sout0 * hd[c.id];
+    # end
+    for id in Q.changed_firms
+        c = M.Companies[id];
+        sector_volumes[c.nace] += c.sout0 * (hd[c.id] - 1.0);
     end
+
     for company in values(C)
         sout0 = company.sout0;
-        vol_sec = volumesector[company.nace];
+        vol_sec = sector_volumes[company.nace];
         cid = company.id;
         if sout0 > 0
             if vol_sec > 0.0
@@ -362,12 +374,12 @@ function oneStep(M::Market, A::Arrays, Q::DynamicalQuantities)::Float64
     hu = Q.hu;
     ψ = Q.psi;
 
-    newhd = Q.newhd ; #copy(hd); # use similar later
-    newhu = Q.newhu; #copy(hu);
+    newhd = Q.newhd ;
+    newhu = Q.newhu;
 
     marketShare(M,Q);
 
-    # company = C[1302];
+    error = 0.0;
     for company in values(C)
         id = company.id;
         essentials, non_essentials = downStream(company, A, Q);
@@ -376,9 +388,15 @@ function oneStep(M::Market, A::Arrays, Q::DynamicalQuantities)::Float64
         D_u = upStream(company, A, hu);
         newhu[id] = min(D_u, ψ[id]);
         # println("$id, $essentials, $non_essentials, $D_u, $(newhd[id]), $(newhu[id])");
+        c_error = max(error, abs(newhd[id]-hd[id]), abs(newhu[id]-hu[id]));
+        if c_error > 1e-9 # firm's status changed
+            push!(Q.changed_firms, id);
+            # println("Changed: $id");
+        end
+        error = c_error;
     end
 
-    error = max( maximum( abs.(hd .- newhd) ), maximum( abs.(hu .- newhu) ) );
+    # error = max( maximum( abs.(hd .- newhd) ), maximum( abs.(hu .- newhu) ) );
 
     # garbage collector friendly: copy vectors without changing Q
     Q.hd .= newhd;
@@ -399,16 +417,7 @@ A `DataFrame` containing the index of the scenario, the calculated ESRI value, a
 """
 function ESRI(M::Market, A::Arrays, psi_mat::SparseMatrixCSC, ParsedARGS)::DataFrame
     tmax = ParsedARGS["tmax"] 
-    # nthreads = Threads.nthreads();
-    
-    # Results = DataFrame(index=Int[], esri=Float64[], t = Int[]);
-    # VR = Vector{DataFrame}(undef, nthreads);
-    # VQ = Vector{DynamicalQuantities}(undef, nthreads);
-    # for i = 1:nthreads
-    #     VR[i] = copy(Results);
-    #     VQ[i] = DynamicalQuantities(length(M.Companies));
-    # end
-    # @info 1
+ 
     # FIX: Use maxthreadid() if available to handle non-contiguous thread IDs
     # This prevents the "BoundsError at index [3]" when nthreads is 2
     max_tid = isdefined(Threads, :maxthreadid) ? Threads.maxthreadid() : Threads.nthreads()
@@ -425,12 +434,13 @@ function ESRI(M::Market, A::Arrays, psi_mat::SparseMatrixCSC, ParsedARGS)::DataF
     for i = 1:max_tid
         VR[i] = copy(Results);
         VQ[i] = DynamicalQuantities(length(M.Companies));
+        initSectorVolumes!(M, VQ[i]);
     end
     nrcomp = length(M.Companies);
     total_volume = sum([x.sout0 for x in values(M.Companies)]);
     u = ones(nrcomp);
 
-    Threads.@threads for i in axes(psi_mat,2)
+    Threads.@threads for i in axes(psi_mat,2) # go through all firms unless a psi scenario loaded
         t = 0
         tid = Threads.threadid();
         indices = nzrange(psi_mat,i)
@@ -439,6 +449,10 @@ function ESRI(M::Market, A::Arrays, psi_mat::SparseMatrixCSC, ParsedARGS)::DataF
 
         VQ[tid].psi .= u; VQ[tid].psi[firms] = psi;
         VQ[tid].hd .= u; VQ[tid].hu .= u;
+
+        empty!(VQ[tid].changed_firms);
+        pprintln(VQ[tid]);
+
         err = 1.0;
         while (err > 1e-2) && (t<tmax)
             err = oneStep(M,A,VQ[tid]);

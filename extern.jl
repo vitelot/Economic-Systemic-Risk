@@ -1,7 +1,8 @@
 @info "Loading libraries";
 using CSV, DataFrames, JLD2, SparseArrays, ProgressMeter;
 using LinearAlgebra: normalize!, I;
-using ArgParse, SHA
+using ArgParse, SHA;
+using PrettyPrint;
 
 """
     Edge
@@ -90,7 +91,7 @@ struct Market
     Edges::Vector{Edge};
     Sectors::Dict{Int, Sector};
     CompanyID::Dict{String, Int}; # maps companies' names to internal IDs
-    
+
     Market() = new(Dict{Int, Company}(), Edge[], Dict{Int, Sector}(), Dict{String, Int}());
 end
 
@@ -117,7 +118,8 @@ struct DynamicalQuantities
     
     psi::Vector{Float64}; # initial constraint
     
-    # DynamicalQuantities(dim::Int) = new(Dict{Int,Float64}(), ones(dim), ones(dim), ones(dim), ones(dim), ones(dim));
+    changed_firms::Vector{Int}; # list of firms that changed hd
+    initial_sector_volumes::Dict{Int,Float64}; # 
 
     function DynamicalQuantities(dim::Int)
         
@@ -127,8 +129,11 @@ struct DynamicalQuantities
         newhd = Vector{Float64}(undef, dim);
         newhu = Vector{Float64}(undef, dim);
         psi = Vector{Float64}(undef, dim);
-        
-        return new(marketshare, hd, hu, newhd, newhu, psi);
+    
+        changed_firms = Int[];
+        sector_volumes = Dict{Int,Float64}();
+
+        return new(marketshare, hd, hu, newhd, newhu, psi, changed_firms, sector_volumes);
     end
 
 end

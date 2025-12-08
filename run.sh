@@ -4,6 +4,10 @@ echo "Enter the number of threads you wish to use:"
 read nthreads
 echo 
 
+if [ -z "$nthreads" ]; then
+    nthreads=1
+fi
+
 # Define defaults for clarity
 default_in="data/test_list.csv"
 default_out="data/output.csv"
@@ -31,5 +35,5 @@ elif [ $# -eq 3 ]; then
 fi
 
 
-echo "julia --project --threads $nthreads esri.jl -i $in -o $out -p \"$psi\""
-julia --project --threads $nthreads esri.jl -i "$in" -o "$out" -p "$psi"
+echo "julia --project --threads $nthreads main.jl -i $in -o $out -p \"$psi\""
+julia --project --threads $nthreads main.jl -i "$in" -o "$out" -p "$psi"
