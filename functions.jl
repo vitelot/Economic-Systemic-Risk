@@ -446,12 +446,13 @@ function ESRI(M::Market, A::Arrays, psi_mat::SparseMatrixCSC, ParsedARGS)::DataF
         indices = nzrange(psi_mat,i)
         firms = rowvals(psi_mat)[indices]
         psi = 1 .- nonzeros(psi_mat)[indices]
-
+        
+        # println("Calculating esri for firm \"$(M.Companies[i].name)\" on thread $tid ");
         VQ[tid].psi .= u; VQ[tid].psi[firms] = psi;
         VQ[tid].hd .= u; VQ[tid].hu .= u;
 
         empty!(VQ[tid].changed_firms);
-        pprintln(VQ[tid]);
+        # pprintln(VQ[tid]);
 
         err = 1.0;
         while (err > 1e-2) && (t<tmax)
@@ -463,7 +464,6 @@ function ESRI(M::Market, A::Arrays, psi_mat::SparseMatrixCSC, ParsedARGS)::DataF
                 push!(VR[tid], (i, esri, t));
             end
         end
-        # println("Calculating esri for firm \"$(M.Companies[i].name)\" on thread $tid ");
         if !ParsedARGS["timeseries"]
             h = 1.0 .- min.(VQ[tid].hd, VQ[tid].hu);
             esri = sum([x.sout0 * h[x.id] for x in values(M.Companies)]) / total_volume;
