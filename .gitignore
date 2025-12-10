@@ -37,3 +37,5 @@ pippo*
 *.jld2
 testing.jl
 new version
+original*
+reachability.jl
